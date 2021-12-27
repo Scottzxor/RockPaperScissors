@@ -1,0 +1,126 @@
+/*
+Scott Shaulis
+ITSE-2347
+RPS Project: PERMISSIONS
+*/
+
+CREATE OR ALTER FUNCTION udfGetGameID(@parmP1 CHAR(16), 
+									  @parmP2 CHAR(16)) RETURNS INT
+ AS
+ BEGIN
+ 
+  IF @parmP1>@parmP2
+		BEGIN
+			DECLARE @t AS CHAR(16)=@parmP1;
+		SET @parmP1=@parmP2;
+		SET @parmP1=@t;
+	END;
+	
+
+IF @parmP1 = @parmP2
+	RETURN NULL;
+
+	 ELSE IF @parmP1 IS NULL OR @parmP2 IS NULL
+	 RETURN NULL;
+
+ ELSE
+
+	DECLARE @gID AS INT;
+	SELECT @gID=g_id
+	FROM tblGames
+	WHERE p1_id=@parmP1 AND p2_id=@parmP2;
+
+	RETURN @gID;
+END;
+--------------------------------
+GO
+
+--USE RPS_DB;
+
+CREATE OR ALTER FUNCTION udfPossibleOpponents
+						(@user AS CHAR(16) ) RETURNS TABLE
+AS 
+	RETURN 
+
+SELECT p_id
+FROM tblPlayers
+WHERE p_id NOT IN
+(
+	SELECT p_id
+	FROM tblPlayers 
+	WHERE p_id IN 
+	(
+		SELECT p1_id
+		FROM tblGames
+		WHERE p2_id = @user --Where active user is not player 2.
+	)
+
+UNION
+
+SELECT p_id 
+FROM tblPlayers
+WHERE p_id IN
+	(
+		SELECT p2_id
+		FROM tblGames
+		WHERE p1_id = @user --Where active user is not player 1.
+	)
+
+UNION
+		SELECT @user 
+)
+
+EXCEPT -- Except @user
+
+SELECT p_id
+FROM tblPlayers
+WHERE p_id = @user;
+
+GO
+
+------------------------------------------------------
+GO 
+
+	CREATE OR ALTER FUNCTION udfActiveOpponents
+						(@activeUser AS CHAR(16) ) RETURNS TABLE
+AS 
+	RETURN 	
+
+SELECT p_id
+FROM tblPlayers
+WHERE p_id IN
+(
+	SELECT p_id
+	FROM tblPlayers 
+	WHERE p_id IN 
+	(
+		SELECT p1_id
+		FROM tblGames
+		WHERE p2_id = @activeUser --Where active user is not player 2.
+	)
+
+UNION
+
+SELECT p_id 
+FROM tblPlayers
+WHERE p_id IN
+	(
+		SELECT p2_id
+		FROM tblGames
+		WHERE p1_id = @activeUser --Where active user is not player 1.
+	)
+
+UNION
+		SELECT @activeUser 
+)
+
+EXCEPT -- Except @user
+
+SELECT p_id
+FROM tblPlayers
+WHERE p_id = @activeUser;
+
+GO
+
+----------------------------------------------------
+	
