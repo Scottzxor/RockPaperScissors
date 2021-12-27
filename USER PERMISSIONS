@@ -1,0 +1,17 @@
+/*
+Scott Shaulis
+RPS Project: PERMISSIONS
+*/ 
+
+USE RPS_DB;
+
+GO
+
+GRANT EXECUTE ON dbo.udpInsertPlayer TO PUBLIC;
+GRANT EXECUTE ON udpInsertGame TO rps_user;
+GRANT EXECUTE ON udpInsertRound TO rps_user;
+
+GRANT SELECT ON viewActivePlayers TO rps_user;
+GRANT SELECT ON udfActiveOpponents TO rps_user;
+GRANT SELECT ON udfPossibleOpponents TO rps_user;
+
