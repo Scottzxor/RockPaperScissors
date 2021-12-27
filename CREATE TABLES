@@ -1,0 +1,94 @@
+/*
+Scott Shaulis
+ITSE-2347
+RPS Project: TABLE CREATION
+*/
+
+USE RPS_DB;
+
+GO 
+
+DROP SEQUENCE IF EXISTS seqErrataSeq;
+GO
+CREATE SEQUENCE seqErrataSeq AS INT
+	START WITH 1;
+GO
+
+DROP TABLE IF EXISTS tblPlayers;
+DROP TABLE IF EXISTS tblRounds;
+DROP TABLE IF EXISTS tblGames;
+DROP TABLE IF EXISTS tblRPS_errata;
+
+GO
+
+CREATE TABLE tblPlayers(p_id  CHAR(16),
+					    p_time DATETIME,
+
+
+CONSTRAINT players_PK PRIMARY KEY(p_id));
+GO
+-----
+
+GO
+
+CREATE TABLE tblGames
+(
+ g_id INT,
+ g_time DATETIME, 
+ p1_id CHAR(16),
+ p2_id CHAR(16),
+ 
+	CONSTRAINT games_PK PRIMARY KEY (g_id),
+ /*	--
+	CONSTRAINT games_p2_id_FK FOREIGN KEY (p2_id)
+		REFERENCES tblPlayers(p_id),*/
+	--
+	CONSTRAINT games_unique_players UNIQUE(p1_id, p2_id),
+	--
+	CONSTRAINT games_p1_null CHECK (p1_id IS NOT NULL),
+	--
+	CONSTRAINT games_p2_null CHECK (p2_id IS NOT NULL),
+	--
+	CONSTRAINT games_playerOrder CHECK (p1_id < p2_id)
+
+);
+GO
+-----
+
+GO
+
+CREATE TABLE tblRounds
+(
+	r_id INT,
+	g_id INT,
+	r_time DATETIME,
+	p1_token CHAR(1),
+	p2_token CHAR(1)
+	--
+	CONSTRAINT rounds_PK PRIMARY KEY (r_id),
+	--
+	CONSTRAINT rounds_FK FOREIGN KEY (g_id)
+		REFERENCES tblGames(g_id),
+	--
+	CONSTRAINT rounds_tkn1_chk CHECK (p1_token IN ('S', 'P', 'R')),
+	--
+	CONSTRAINT rounds_tkn2_chk CHECK (p2_token IN ('S', 'P', 'R'))
+);
+
+GO
+--------
+GO
+CREATE TABLE tblRPS_errata
+(
+	tvErrataEntryID		INT,
+	tvErrataTimeStamp	DATETIME,
+	--
+	tvError_number		INT,
+	tvError_severity	INT,
+	tvError_state		INT,
+	tvError_procedure	NVARCHAR(128),
+	tvError_line		INT,
+	tvError_message		NVARCHAR(4000),
+	CONSTRAINT RPS_errata_PK PRIMARY KEY(tvErrataEntryID)
+);
+
