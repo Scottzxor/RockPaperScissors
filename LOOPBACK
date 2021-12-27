@@ -1,0 +1,35 @@
+/* 
+Scott Shaulis
+RPS Project: LOOPBACK
+*/ 
+
+/*
+Run this code to delete loopback. Make sure it's not in a comment line--at all--when you use it, highlighted or not.
+
+USE master;
+
+GO
+
+EXEC sp_dropserver 'loopback', 'droplogins';
+
+GO
+
+*/
+
+
+USE master;
+
+GO
+
+EXEC master.dbo.sp_addlinkedserver @server = N'loopback', @srvproduct=N'',
+ @provider=N'SQLNCLI', @datasrc=@@SERVERNAME;
+
+ GO
+
+ EXEC sp_serveroption loopback,N'remote proc transaction promotion','FALSE';
+
+ GO
+
+ EXEC sp_serveroption loopback,N'RPC OUT','TRUE';
+
+GO
