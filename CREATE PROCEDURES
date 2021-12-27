@@ -1,0 +1,168 @@
+/*
+Scott Shaulis
+ITSE-2347
+RPS Project: PROCEDURES
+*/
+
+USE RPS_DB;
+
+GO
+
+CREATE OR ALTER PROC udpInsertGame (@parmP1 AS CHAR(16), 
+									@parmP2 AS CHAR(16))
+AS 
+BEGIN
+IF @parmP1>@parmP2
+		BEGIN
+			DECLARE @t AS CHAR(16)=@parmP1;
+		SET @parmP1=@parmP2;
+		SET @parmP2=@t;
+	END;
+/*
+	return values:
+	0: success
+	1: NULL parameter
+	2: Player ID in use
+	3: Player 2 null
+	4: Either one or both players null
+*/
+	IF @parmP1 IS NULL OR @parmP2 IS NULL
+		RETURN 1;
+ELSE
+	IF @parmP1 = @parmP2
+		RETURN 2;
+		
+	ELSE
+	IF NOT EXISTS
+		(
+		SELECT * 
+		FROM tblPlayers
+		WHERE p_id=@parmP1
+		)
+	OR 
+	NOT EXISTS
+		(
+		SELECT *
+		FROM tblPlayers
+		WHERE p_id=@parmP2 
+		)
+		RETURN 3;
+
+	ELSE 
+		IF EXISTS
+		(
+			SELECT *
+			FROM tblPlayers
+			WHERE p_id=@parmP1 AND p_id=@parmP2
+		)
+		RETURN 4;
+	ELSE 
+		BEGIN TRY
+		INSERT INTO tblGames(g_id, p1_id, p2_id, g_time)
+		VALUES(NEXT VALUE FOR RPS_DB.dbo.seqPK_Seq,
+				@parmP1, 
+				@parmP2,
+				GETDATE() );
+		RETURN 0;
+		END TRY
+		BEGIN CATCH
+			RETURN 13;
+			END CATCH
+END;
+
+GO
+
+CREATE OR ALTER PROC udpInsertPlayer ( @vP_id AS CHAR(16) )
+AS
+/* 
+	Return Values:
+	0: success
+	1: NULL parameter
+	2: Player id in use
+*/
+
+BEGIN
+	IF @vP_id IS NULL OR LEN(@vP_id) = 0
+		RETURN 1; 
+
+	ELSE
+		IF EXISTS 
+		(
+			SELECT *
+			FROM tblPlayers 
+			WHERE p_id=@vP_id
+		)
+		RETURN 2;
+		ELSE
+
+	BEGIN TRY
+			INSERT INTO tblPlayers(p_id, p_time)
+			VALUES(@vP_id,
+				   GETDATE());
+			RETURN 0;
+	END TRY
+
+		BEGIN CATCH
+			EXEC udpRPS_WriteErrata;
+			RETURN 13;
+			THROW 51000, 'Major Error.', 16;
+		END CATCH;
+
+	RETURN 0;
+
+END;
+
+GO
+
+CREATE OR ALTER PROC udpInsertRound (@Px AS CHAR(16),
+									 @Py AS CHAR(16),
+									 @tx AS CHAR(1), 
+									 @ty AS CHAR(1) )
+
+AS 
+
+BEGIN
+
+
+IF @Px>@Py
+	BEGIN
+	DECLARE @p AS CHAR(16)=@Px;
+	SET @Px = @Py;
+	SET @Py = @p;
+	-----------------------------
+		DECLARE @t AS CHAR(1)=@tx;
+		SET @tx=@ty
+		SET @ty=@t;
+	END;
+---------------
+
+
+--User input goes into Px and Py which is then routed to the Function, taking up 
+--Parm1 and Parm2.
+
+ /*
+	RETURN 0: SUCCESSFUL
+	RETURN 1: NULL VALUE
+	RETURN 2: Invalid Input
+	RETURN 13: SERIOUS ISSUE
+ */
+
+DECLARE @gID AS INTEGER = dbo.udfGetGameID( @Px, @Py );
+
+IF @gID IS NULL
+	RETURN 1;
+
+ 
+	BEGIN TRY
+	INSERT INTO tblRounds (r_id, g_id, r_time, p1_token, p2_token)
+	VALUES (			NEXT VALUE FOR RPS_DB.dbo.seqPK_Seq,
+						@gID,
+						GETDATE(), 
+						@tx, 
+						@ty)
+						RETURN 0;
+	END TRY
+			BEGIN CATCH
+			RETURN 13;
+			END CATCH
+	END;
