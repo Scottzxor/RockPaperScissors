@@ -1,0 +1,260 @@
+/*
+Scott Shaulis
+ITSE-2347.200
+RPS Project: TRIGGERS
+*/
+
+USE RPS_DB;
+
+GO
+------
+
+CREATE OR ALTER PROCEDURE udpRPS_WriteErrata AS
+BEGIN
+	INSERT INTO RPS_DB.dbo.tblRPS_errata
+	(
+		tvErrataEntryID, 
+		tvErrataTimeStamp, 
+		tvError_number, 
+		tvError_severity,
+		tvError_state, 
+		tvError_procedure, 
+		tvError_line, 
+		tvError_message
+	)
+	VALUES
+	(
+		NEXT VALUE FOR RPS_DB.dbo.seqErrataSeq, 
+		GETDATE(),
+		ERROR_NUMBER(),
+		ERROR_SEVERITY(),
+		ERROR_STATE(),
+		ERROR_PROCEDURE(),
+		ERROR_LINE(),
+		ERROR_MESSAGE()
+	);
+	RETURN 0;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE udpRPS_WriteErrata_trigger
+(
+	@tvError_number AS		INT,
+	@tvError_severity AS	INT,
+	@tvError_state AS		INT, 
+	@tvError_procedure AS	NVARCHAR(128),
+	@tvError_line AS		INT, 
+	@tvError_message AS		NVARCHAR(4000) 
+) AS
+BEGIN
+	INSERT INTO rps_DB.dbo.tblRPS_errata
+	(
+		tvErrataEntryID, 
+		tvErrataTimeStamp, 
+		--
+		tvError_number, 
+		tvError_severity,
+		tvError_state, 
+		tvError_procedure, 
+		tvError_line, 
+		tvError_message
+	)
+	VALUES
+	(
+		NEXT VALUE FOR RPS_DB.dbo.seqErrataSeq, 
+		GETDATE(),
+		--
+		@tvError_number, 
+		@tvError_severity, 
+		@tvError_state, 
+		@tvError_procedure, 
+		@tvError_line, 
+		@tvError_message
+	);
+END;
+---------------------------------------------------------------
+GO
+---------------------------------------------------------------
+
+CREATE OR ALTER TRIGGER trgRPS_players_noDelete ON tblPlayers
+	INSTEAD OF DELETE	
+	AS
+BEGIN
+	BEGIN TRY
+		THROW 51001, 'Attempted Delete From Players', 16; 
+
+	END TRY
+	BEGIN CATCH
+		DECLARE	@p1 AS INT =			ERROR_NUMBER(),
+				@p2 AS INT =			ERROR_SEVERITY(),
+				@p3 AS INT =			ERROR_STATE(),
+				@p4 AS NVARCHAR(128) =	ERROR_PROCEDURE(),
+				@p5 AS INT =			ERROR_LINE(),
+				@p6 AS NVARCHAR(4000) = ERROR_MESSAGE();
+
+		EXEC loopback.rps_DB.dbo.udpRPS_WriteErrata_trigger 
+			@p1, --ERROR_NUMBER(),
+			@p2, --ERROR_SEVERITY(), 
+			@p3, --ERROR_STATE(),
+			@p4, --ERROR_PROCEDURE(), 
+			@p5, --ERROR_LINE(), 
+			@p6; --ERROR_MESSAGE();
+
+			THROW 51001, @p6, 16;
+
+			ROLLBACK;
+	END CATCH
+END;
+GO
+
+
+-----------------------------------------------------------------
+CREATE OR ALTER TRIGGER trgRPS_Chk_Insert_players ON tblPlayers
+	INSTEAD OF INSERT 
+AS
+
+/*
+ERROR CODES:
+
+51002: Row count insert error
+51003: Null value error
+51004: Duplicate value error
+*/
+
+
+BEGIN
+	DECLARE @p_id AS VARCHAR(16),
+			@cnt AS TINYINT;
+			
+	BEGIN TRY 
+	SELECT @cnt = COUNT(*) FROM INSERTED;
+	IF @cnt <> 1
+		THROW 51002, 'Row Count Error', 16
+		
+		SELECT @p_id = p_id FROM INSERTED;
+		
+	IF @p_id IS NULL
+		THROW 51003, 'Null value error on p_id', 16;
+		
+	IF EXISTS 
+	(
+		SELECT * FROM tblPlayers
+		WHERE p_id = @p_id
+	)
+			THROW 51004, 'Duplicate p_id', 16;
+			
+		INSERT INTO tblPlayers(p_id, p_time)
+		VALUES (@p_id, GETDATE());
+		
+END TRY
+BEGIN CATCH
+	DECLARE	@p1 AS INT =			ERROR_NUMBER(),
+			@p2 AS INT =			ERROR_SEVERITY(),
+			@p3 AS INT =			ERROR_STATE(),
+			@p4 AS NVARCHAR(128) =	ERROR_PROCEDURE(),
+			@p5 AS INT =			ERROR_LINE(),
+			@p6 AS NVARCHAR(4000) = ERROR_MESSAGE();
+			
+			EXEC loopback.RPS_DB.dbo.udpRPS_WriteErrata_trigger
+			@p1, --ERROR_NUMBER(),
+			@p2, --ERROR_SEVERITY(), 
+			@p3, --ERROR_STATE(),
+			@p4, --ERROR_PROCEDURE(), 
+			@p5, --ERROR_LINE(), 
+			@p6; --ERROR_MESSAGE();
+
+			THROW 51001, @p6, 16;
+
+			ROLLBACK;
+	END CATCH;
+END;
+
+GO
+--------------------------------------------------------------
+
+CREATE OR ALTER TRIGGER trgRPS_No_Update_players ON tblPlayers
+	INSTEAD OF UPDATE 
+AS
+
+/*
+ERROR CODES:
+
+51005: Illegal update
+16: Major error
+*/
+
+
+BEGIN		
+	BEGIN TRY 
+
+		THROW 51005, 'Illegal Update on Table Players', 16	
+	END TRY
+
+BEGIN CATCH
+	DECLARE	@p1 AS INT =			ERROR_NUMBER(),
+			@p2 AS INT =			ERROR_SEVERITY(),
+			@p3 AS INT =			ERROR_STATE(),
+			@p4 AS NVARCHAR(128) =	ERROR_PROCEDURE(),
+			@p5 AS INT =			ERROR_LINE(),
+			@p6 AS NVARCHAR(4000) = ERROR_MESSAGE();
+			
+			EXEC loopback.RPS_DB.dbo.udpRPS_WriteErrata_trigger
+						@p1, --ERROR_NUMBER(),
+			@p2, --ERROR_SEVERITY(), 
+			@p3, --ERROR_STATE(),
+			@p4, --ERROR_PROCEDURE(), 
+			@p5, --ERROR_LINE(), 
+			@p6; --ERROR_MESSAGE();
+
+			THROW 51005, @p6, 16;
+
+			ROLLBACK;
+	END CATCH
+END;
+
+GO
+----------------------------------------------------------
+
+CREATE OR ALTER TRIGGER trgRPS_no_Delete_Games ON tblGames
+	INSTEAD OF DELETE
+AS
+
+/*
+ERROR CODES:
+
+51006: Illegal delete on table games
+16: Major error
+*/
+
+BEGIN 
+	BEGIN TRY
+		THROW 51006, 'Illegal delete on the games table', 16;
+	END TRY
+	BEGIN CATCH
+	DECLARE	@p1 AS INT =			ERROR_NUMBER(),
+			@p2 AS INT =			ERROR_SEVERITY(),
+			@p3 AS INT =			ERROR_STATE(),
+			@p4 AS NVARCHAR(128) =	ERROR_PROCEDURE(),
+			@p5 AS INT =			ERROR_LINE(),
+			@p6 AS NVARCHAR(4000) = ERROR_MESSAGE();
+			
+			EXEC loopback.RPS_DB.dbo.udpRPS_WriteErrata_trigger
+						@p1, --ERROR_NUMBER(),
+			@p2, --ERROR_SEVERITY(), 
+			@p3, --ERROR_STATE(),
+			@p4, --ERROR_PROCEDURE(), 
+			@p5, --ERROR_LINE(), 
+			@p6; --ERROR_MESSAGE();
+
+			THROW 51006, @p6, 16;
+
+			ROLLBACK;
+	END CATCH
+END;
+GO
+
+
+
+
+
+
